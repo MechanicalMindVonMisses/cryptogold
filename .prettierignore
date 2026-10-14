@@ -1,0 +1,12 @@
+.next
+node_modules
+coverage
+test-results
+playwright-report
+package-lock.json
+prd.md
+tasks.json
+src/server/__fixtures__/*.json
+tsconfig.tsbuildinfo
+next-env.d.ts
+AGENTS.md

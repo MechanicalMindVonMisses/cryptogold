@@ -1,0 +1,729 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Scaffold Next.js + TypeScript project with tooling",
+      "description": "Create the AuRatio repository skeleton with Next.js (App Router), TypeScript strict mode, Tailwind CSS, ESLint/Prettier, Vitest, Playwright and environment configuration.",
+      "details": "Use create-next-app (TypeScript, App Router, Tailwind, src/ dir). Enable `strict` in tsconfig. Add Vitest (jsdom for components, node for lib), Playwright with one smoke test, and axe-core/playwright. Create folders: src/lib (pure logic), src/server/providers, src/server/cache, src/app/api, src/components. Add `.env.example` with COINGECKO_DEMO_API_KEY and optional BINANCE_BASE_URL; read config through a typed `src/server/config.ts` that throws a clear error if the key is missing. Add npm scripts: dev, build, lint, test, test:e2e, typecheck.",
+      "testStrategy": "`npm run build`, `npm run lint`, `npm run typecheck` and `npm test` all pass on a clean clone; Playwright smoke test loads `/` and sees the app title; starting without COINGECKO_DEMO_API_KEY logs a readable config error.",
+      "status": "done",
+      "dependencies": [],
+      "priority": "high",
+      "prdRefs": [
+        "§9.1",
+        "§9.5"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Initialise Next.js app with TS strict and Tailwind",
+          "description": "Run create-next-app, enable strict mode, set up src/ folder structure.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Add test and lint tooling",
+          "description": "Configure Vitest (node + jsdom projects), Playwright, axe-core, ESLint and Prettier with npm scripts.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Typed environment config",
+          "description": "Create .env.example and src/server/config.ts that validates env vars with Zod and fails with a clear message.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Server-side cache and resilient fetch utility",
+      "description": "Build the shared HTTP layer used by all providers: in-memory TTL cache, request coalescing, timeouts, retries with exponential backoff and 429 handling.",
+      "details": "Implement `cachedFetch(key, ttlMs, fn)` with an in-memory Map (bounded LRU, ~500 entries) and in-flight promise coalescing so concurrent identical requests share one upstream call. Implement `fetchJson(url, {timeoutMs, retries, headers})` using AbortController (default 8 s timeout), retrying on network errors/5xx with backoff 1 s, 2 s, 4 s (max 30 s) and honouring Retry-After on 429. Return typed errors (`UpstreamError {source, status, retryable}`) and never leak upstream bodies or headers. Support serving stale cache entries when the upstream fails (stale-if-error), returning a `stale: true` flag.",
+      "testStrategy": "Vitest with fake timers and a mocked fetch: TTL expiry, coalescing (two concurrent calls → one fetch), retry sequence on 503, Retry-After respected on 429, timeout aborts, stale-if-error returns the cached value with stale flag.",
+      "status": "done",
+      "dependencies": [
+        1
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "§7.5",
+        "§11",
+        "NFR-2"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "TTL + LRU cache with request coalescing",
+          "description": "In-memory cache module with bounded size and shared in-flight promises.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "fetchJson with timeout, retry and backoff",
+          "description": "AbortController timeout, exponential backoff, Retry-After handling, typed UpstreamError.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "Stale-if-error support",
+          "description": "Return last cached value flagged stale when every retry fails.",
+          "status": "done",
+          "dependencies": [
+            1,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Gold price provider (XAUS) with PAXG fallback",
+      "description": "Implement the gold provider: live spot price in USD per troy ounce, hourly and daily history, with an automatic PAXG-based fallback.",
+      "details": "providers/xaus.ts: `getGoldSpot()` → GET https://xaus.com/api/v1/spot?unit=oz&currency=USD&compact=1, parse `xau.price`, `price_as_of`, `stale` with Zod; cache 60 s. `getGoldHistory(range)` → GET /api/v1/chart?symbol=xau&range=<1mo|3mo|6mo|1y|5y|max>&interval=<1h|1d>; map 7d to range=1mo interval=1h and trim. Normalise to `{t (ms UTC), usdPerOz}`. providers/paxg.ts: fallback spot via CoinGecko simple/price for `pax-gold` and history via market_chart or Binance PAXGUSDT klines. Expose a single `GoldProvider` interface returning `{data, source: 'xaus'|'paxg', stale}`. Optional: currency param for TRY display (used by task 13).",
+      "testStrategy": "Parser tests against recorded XAUS JSON fixtures (spot, chart 1y daily, chart 1mo hourly); malformed payload rejected by Zod; when XAUS mock returns 503, provider returns PAXG data with source 'paxg'; cache hit avoids second fetch within 60 s.",
+      "status": "done",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "§7.1",
+        "FR-1",
+        "FR-12"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "XAUS spot and history client",
+          "description": "Zod schemas and fetch functions for /spot and /chart, normalised to USD per troy ounce.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "PAXG fallback provider",
+          "description": "Spot and history for pax-gold via CoinGecko, PAXGUSDT via Binance for long ranges.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "GoldProvider facade",
+          "description": "Single interface that tries XAUS then PAXG and reports source and staleness.",
+          "status": "done",
+          "dependencies": [
+            1,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Crypto providers: CoinGecko (search, spot, ≤365 d) and Binance (long history)",
+      "description": "Implement coin search, batched live prices and price history for any coin, using CoinGecko for coverage and Binance klines for history beyond 365 days.",
+      "details": "providers/coingecko.ts: send `x-cg-demo-api-key` header. `searchCoins(q)` → /search (map id, symbol, name, thumb, market_cap_rank; cache 24 h per query). `getSpot(ids[])` → /simple/price?ids=…&vs_currencies=usd&include_24hr_change=true (batched, cache 60 s). `getHistory(id, days)` → /coins/{id}/market_chart?vs_currency=usd&days=N (hourly for ≤90 d, daily above; demo cap 365 d). providers/binance.ts: `getDailyKlines(symbol)` paginating /api/v3/klines?symbol=<SYM>USDT&interval=1d&limit=1000 by startTime until present; base URL from config. Symbol resolution: CoinGecko symbol upper-cased + 'USDT', verified via /api/v3/exchangeInfo (cached 24 h); unknown pair → `null` so the UI disables 5Y/Max. Keep calls under 50/min to CoinGecko by relying on the task 2 cache.",
+      "testStrategy": "Fixture-based parser tests for /search, /simple/price, /market_chart and klines; pagination test assembling >1000 klines across two pages; symbol not on Binance returns null; API key header present on every CoinGecko request and absent from any returned object.",
+      "status": "done",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "§7.1",
+        "FR-3",
+        "FR-7"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "CoinGecko client: search and batched spot",
+          "description": "Zod-validated /search and /simple/price with caching.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "CoinGecko history client",
+          "description": "market_chart wrapper returning normalised {t, usd} points with granularity metadata.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "Binance klines client with pagination and symbol check",
+          "description": "Daily klines beyond 365 days, exchangeInfo-based pair resolution.",
+          "status": "done",
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Ratio engine: alignment, forward-fill, units and statistics",
+      "description": "Write the pure TypeScript library that turns coin and gold price series into ratio series and statistics, independent of any network code.",
+      "details": "src/lib/ratio.ts: `alignSeries(coin, gold, granularity)` keys points by UTC date or hour, forward-fills missing gold values (weekends/holidays) and sets `goldFilled`; drops leading points with no prior gold value. `toRatio(points)` → ratioOz = coinUsd / goldUsdOz. `ozToGram(x) = x * 31.1034768`. `indexTo100(series)`. `computeStats(series)` → current, changePct, high {value,t}, low {value,t}, avg, ma30, ma90, percentile of current within range. src/lib/format.ts: number formatting rules from PRD §7.2 (2 decimals ≥1, 4 significant digits 0.01–1, compact for <0.01, mg hint for grams), percent with sign and arrow. No React or fetch imports in lib/.",
+      "testStrategy": "Vitest with ≥90 % line coverage: weekend forward-fill (Fri gold used for Sat/Sun crypto), leading-gap drop, hourly alignment, gram conversion exact to 1e-9 relative error, stats on a hand-computed 10-point series, indexTo100 first value equals 100, formatting table-driven tests for each magnitude band.",
+      "status": "done",
+      "dependencies": [
+        1
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "§7.2",
+        "§7.3",
+        "FR-2",
+        "FR-6",
+        "NFR-7"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Series alignment and forward-fill",
+          "description": "UTC-keyed alignment for daily and hourly granularities with goldFilled flags.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Ratio, unit conversion and indexing",
+          "description": "ratioOz, ozToGram, indexTo100 as pure functions.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Statistics and number formatting",
+          "description": "High/low/avg/MA/percentile/change plus magnitude-aware formatting helpers.",
+          "status": "done",
+          "dependencies": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Internal API routes: /api/search, /api/spot, /api/history",
+      "description": "Expose the providers and ratio engine through three validated, cached Next.js route handlers that the browser calls.",
+      "details": "Route handlers in src/app/api/*/route.ts. Validate query params with Zod (search q 2–50 chars; spot ids ≤ 20; history id + range ∈ 7d,1m,3m,6m,1y,5y,max). /api/spot combines GoldProvider spot and CoinGecko batched spot → `{gold:{usdPerOz, asOf, source, stale}, coins:[{id, usd, change24h, ratioOz, asOf}]}`. /api/history picks coin source by range (CoinGecko ≤365 d, Binance beyond; truncate and set `meta.truncated` + `availableFrom` when data is shorter), fetches gold history at matching granularity, aligns via lib/ratio, returns `{id, range, granularity, points, meta:{coinSource, goldSource, availableFrom, truncated}}`. Error envelope `{error, source}` with 400/502. Cache-Control headers per PRD §7.5. Never include API keys or upstream bodies in responses.",
+      "testStrategy": "Integration tests calling route handlers with mocked providers: happy path for each route; 400 on bad params; 502 when all upstreams fail; gold fallback reflected in meta.goldSource; 5y request for a coin without Binance pair returns truncated=true; response JSON scanned to assert the API key string never appears.",
+      "status": "done",
+      "dependencies": [
+        3,
+        4,
+        5
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "§9.3",
+        "§7.5",
+        "§11",
+        "NFR-3"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "/api/search and /api/spot handlers",
+          "description": "Validated handlers combining providers with cache headers.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "/api/history handler with source selection",
+          "description": "Range → source routing, truncation metadata, alignment through lib/ratio.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "Shared error envelope and response contract tests",
+          "description": "Uniform 400/502 shape, key-leak test, Cache-Control assertions.",
+          "status": "done",
+          "dependencies": [
+            1,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Plain-language summary generator",
+      "description": "Implement the deterministic, unit-aware template engine that writes the 2–4 sentence summary under the chart.",
+      "details": "src/lib/summary.ts: `buildSummary({symbol, series, stats, unit, range, goldSource, truncatedDays})` → `{sentences: string[], text}`. Implements PRD §7.4: S1 current value with secondary unit in parentheses; S2 change with 'up'/'down'/'roughly flat' (<1 %); S3 position vs period high (top half) or low (bottom half), 'at a new period high/low' within 0.5 %; S4 trend only for ranges ≥3M using ratio change ±1 % and ma30 vs ma90. Edge cases: <2 points, truncated range, PAXG fallback note. Max 60 words. Uses lib/format for numbers; no external free text. Also export `buildOneLiner()` for watchlist rows (e.g. '19.79 oz · ▲2.1 % 24h').",
+      "testStrategy": "Table-driven Vitest cases for every sentence rule and edge case in PRD §7.4, in both oz and g; word-count ≤60 assertion; snapshot of the BTC example; ≥90 % line coverage.",
+      "status": "done",
+      "dependencies": [
+        5
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "§7.4",
+        "FR-5",
+        "G4"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Sentence templates S1–S4",
+          "description": "Implement each rule with thresholds from the PRD.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Edge-case wording and word cap",
+          "description": "Insufficient data, truncated history, fallback-source notes, 60-word limit.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Watchlist one-liner helper",
+          "description": "Compact per-coin summary string for watchlist rows.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Design system and responsive layout shell",
+      "description": "Build the visual foundation: tokens, light/dark themes, header with unit and theme toggles, responsive grid and shared loading/error components.",
+      "details": "Define CSS variables for surface, text, border, accent (gold) and a colour-blind-safe categorical palette for compare mode, with light and dark values; default to prefers-color-scheme, manual toggle persisted in localStorage (try/catch). Settings store (React context or Zustand) holding unit ('oz'|'g'), theme and displayCurrency, persisted. Header: logo, search slot, segmented oz/g toggle, theme toggle, info popover. Grid per PRD §8.2 (sidebar watchlist + main) and §8.3 stacked mobile layout from 360 px. Components: Skeleton, InlineError (with retry), Badge (stale/fallback), Card. Tabular numerals globally for figures. Set up TanStack Query provider with 60 s refetch only when the tab is visible.",
+      "testStrategy": "Playwright visual checks at 360, 768 and 1440 px (no horizontal scroll); theme toggle persists after reload; unit toggle persists after reload; axe-core reports no serious violations on the empty shell in both themes.",
+      "status": "done",
+      "dependencies": [
+        1
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "§8",
+        "FR-2",
+        "FR-13",
+        "FR-14",
+        "NFR-5"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Design tokens and theming",
+          "description": "Light/dark CSS variables, accent and categorical palette, theme persistence.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Settings store and header controls",
+          "description": "Unit and theme toggles wired to a persisted settings store.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Responsive grid and shared UI states",
+          "description": "Desktop/mobile layouts, Skeleton, InlineError, Badge, Card, TanStack Query provider.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Main ratio chart with ranges and interactions",
+      "description": "Build the central historical chart of the crypto/gold ratio using TradingView Lightweight Charts.",
+      "details": "RatioChart component fed by useHistory(id, range) (TanStack Query → /api/history). Range chips 7D 1M 3M 6M 1Y 5Y Max; disable chips beyond `meta.availableFrom` with an explanatory tooltip. Area/line series of ratio in the current unit — convert client-side from ratioOz so the unit toggle needs no refetch. Crosshair tooltip: date, ratio (unit), coin USD, gold USD/oz, and 'gold: last close <day>' when goldFilled. Price lines for period high, low and average. Log/linear toggle. Pan/zoom enabled; double-click resets. Theme-aware colours; resize observer for responsiveness. Chart gets aria-describedby pointing to the summary card.",
+      "testStrategy": "Component tests with a mocked series (tooltip content, disabled ranges, unit switch changes axis labels without new fetch — assert no network call); Playwright: change range updates chart and URL-independent state; performance check that 2,000 points render in <200 ms (performance.now around setData).",
+      "status": "done",
+      "dependencies": [
+        6,
+        8
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "FR-3",
+        "FR-4",
+        "NFR-1"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Chart wrapper and data binding",
+          "description": "Lightweight Charts setup, theme colours, resize handling, unit conversion.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Range selector with availability rules",
+          "description": "Range chips, disabled states and tooltips from history metadata.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Tooltip, reference lines and scale toggle",
+          "description": "Crosshair tooltip, high/low/avg lines, log/linear, zoom reset.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Hero ratio, KPI strip and summary card",
+      "description": "Show the headline answer ('1 BTC = 19.79 oz of gold'), the KPI cards and the plain-language summary for the selected coin.",
+      "details": "Hero: big ratio in the selected unit with secondary unit, 24h change chip (arrow + sign + colour), 'as of' time, coin USD price and gold price per oz/gram; refreshes every 60 s from /api/spot. KPI strip: change over 24h/7D/30D/1Y and period high/low with dates, from computeStats on the current history plus extra lightweight history calls where needed (reuse cached queries). SummaryCard renders buildSummary output and acts as the chart's text alternative. Stale/fallback badges from FR-12 shown next to the 'as of' time. Skeletons match final dimensions to avoid layout shift.",
+      "testStrategy": "Component tests: hero formats BTC example correctly in oz and g; change chip shows arrow and sign (not colour alone); summary text matches lib output; stale badge appears when API returns stale=true; Playwright UC1 and UC3 flows pass.",
+      "status": "done",
+      "dependencies": [
+        6,
+        7,
+        8
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "FR-1",
+        "FR-5",
+        "FR-6",
+        "FR-12",
+        "G1"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Hero component with live refresh",
+          "description": "Headline ratio, secondary unit, change chip, prices and as-of time with 60 s polling.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "KPI strip",
+          "description": "Change and high/low cards computed from cached history.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "Summary card and status badges",
+          "description": "Render summary text, stale/fallback badges, skeleton states.",
+          "status": "done",
+          "dependencies": [
+            1,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Coin search and persistent watchlist",
+      "description": "Let the user find any coin and keep a reorderable watchlist (default BTC, ETH, SUI) with sparklines and one-line summaries.",
+      "details": "SearchBox: accessible combobox (ARIA 1.2 pattern), 300 ms debounce, ↑/↓/Enter/Esc, results with icon, name, symbol, rank; Enter selects coin, '+' adds to watchlist. Watchlist: default ['bitcoin','ethereum','sui'], max 20, add/remove/drag-reorder (keyboard reorder via buttons too), persisted in localStorage with try/catch and a safe default. Rows use one batched /api/spot call for all ids, show ratio in current unit, 24h change and a 7-day inline SVG sparkline (from /api/history?range=7d, lazy-loaded when visible). Unknown/delisted ids render 'Unavailable' with remove action. Mobile: horizontal chip row + bottom-sheet full list.",
+      "testStrategy": "Playwright UC4: type 'sui', select, add, reload → still in watchlist; keyboard-only search and selection; reorder persists; corrupt localStorage value falls back to defaults; only one /api/spot request for the whole list per refresh.",
+      "status": "done",
+      "dependencies": [
+        6,
+        7,
+        8
+      ],
+      "priority": "high",
+      "prdRefs": [
+        "FR-7",
+        "FR-8",
+        "UC4"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Accessible search combobox",
+          "description": "Debounced search with keyboard navigation and result rendering.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Watchlist state and persistence",
+          "description": "Defaults, add/remove/reorder, 20-item cap, localStorage with fallback.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "Watchlist rows with sparklines and one-liners",
+          "description": "Batched spot data, lazy 7D sparklines, unavailable-coin handling, mobile variant.",
+          "status": "done",
+          "dependencies": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Compare mode: up to 4 coins indexed to 100",
+      "description": "Overlay several coins' gold ratios on one chart, each rebased to 100 at the start of the range.",
+      "details": "Compare toggle and picker (from watchlist or search), max 4 coins. Fetch histories in parallel, intersect date ranges (use the latest common start; note truncation), apply indexTo100, render one line per coin with the categorical palette and a legend showing current indexed value and % change. Tooltip lists all coins at the hovered date. Summary switches to a comparison sentence: '<best> did best against gold (+x %), <worst> did worst (−y %)'. Leaving compare mode returns to the single-coin view without refetching.",
+      "testStrategy": "Unit tests for common-range intersection and comparison sentence; Playwright UC5 with BTC, ETH, SUI on 1Y (three series, legend values, tooltip shows three rows); colour palette passes a contrast check against both theme backgrounds.",
+      "status": "done",
+      "dependencies": [
+        9,
+        11
+      ],
+      "priority": "medium",
+      "prdRefs": [
+        "FR-9",
+        "UC5"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Compare selection UI and data fetching",
+          "description": "Picker limited to 4 coins, parallel history queries.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Indexed multi-series chart",
+          "description": "Common-range intersection, indexTo100, legend and multi-row tooltip.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Comparison summary sentence",
+          "description": "Best/worst performer wording added to the summary engine.",
+          "status": "done",
+          "dependencies": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Price context and optional TRY display currency",
+      "description": "Show the underlying prices clearly and let the user display them in TRY as well as USD.",
+      "details": "Price context panel/tooltip: coin price in USD, gold per troy ounce and per gram. Display-currency setting USD|TRY in settings; fetch TRY FX via XAUS spot `currency=TRY` (fx_rate) cached 12 h; convert display prices only — ratios remain currency-independent. Label every price with currency and unit (format '₺<amount>/g', '$<amount>/oz'). Show the FX timestamp in the info popover.",
+      "testStrategy": "Unit test: TRY conversion multiplies USD prices by fx_rate and leaves ratios untouched; Playwright: switching to TRY changes price labels but not the hero ratio; FX failure falls back to USD with a badge.",
+      "status": "done",
+      "dependencies": [
+        10
+      ],
+      "priority": "medium",
+      "prdRefs": [
+        "FR-10"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Price context component",
+          "description": "Coin USD, gold per oz and per gram with unit/currency labels.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "TRY display currency",
+          "description": "FX fetch via XAUS, settings toggle, display-only conversion and fallback.",
+          "status": "done",
+          "dependencies": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Export, shareable URLs and data provenance",
+      "description": "Add CSV/PNG export, encode the view in the URL, and show sources and disclaimer.",
+      "details": "CSV export of the current series with header `date,coin_usd,gold_usd_oz,ratio_oz,ratio_g` (ISO dates, full precision). PNG export via Lightweight Charts takeScreenshot with title and unit stamped. URL query sync for coin, range, unit and compare list (read on load, replace on change, validated). Footer: sources (XAUS, CoinGecko, Binance, PAXG fallback when used), last update per source, disclaimer 'Indicative prices, not financial advice.' Info popover explains methodology: formula, gram conversion, weekend forward-fill, USDT≈USD note, 365-day CoinGecko limit.",
+      "testStrategy": "Unit test for CSV serialisation (header, row count, number precision); Playwright: CSV download has expected header; opening a URL with ?coin=ethereum&range=1y&unit=g restores that view; invalid query values fall back to defaults; footer lists the active gold source.",
+      "status": "done",
+      "dependencies": [
+        9
+      ],
+      "priority": "low",
+      "prdRefs": [
+        "FR-11",
+        "FR-15",
+        "FR-16"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "CSV and PNG export",
+          "description": "Serialise series and capture chart image with title/unit.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "URL state sync",
+          "description": "Validated query-string read/write for coin, range, unit, compare.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "Footer and methodology popover",
+          "description": "Source attribution, timestamps, disclaimer and methodology text.",
+          "status": "done",
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Resilience: error, stale, fallback and offline states",
+      "description": "Make every failure mode visible but non-blocking, following the PRD edge-case table.",
+      "details": "Wire UpstreamError/502 responses to InlineError with retry; 429 → keep showing cached data with 'Live updates paused' badge and backoff; gold fallback → 'Gold priced via PAXG' badge and summary note; truncated history → disabled ranges + summary span sentence; micro-cap formatting (mg) verified in UI; offline detection (navigator.onLine + failed fetch) → 'Offline — showing data from HH:MM' using TanStack Query cache. Add a top-level React error boundary so a component failure never blanks the page.",
+      "testStrategy": "Playwright with route interception: simulate XAUS 503 (PAXG badge appears), CoinGecko 429 (paused badge, data still visible), all upstreams down (inline error + retry works when restored), offline mode (banner shows timestamp); unit test for micro-cap display string.",
+      "status": "done",
+      "dependencies": [
+        9,
+        10,
+        11
+      ],
+      "priority": "medium",
+      "prdRefs": [
+        "§11",
+        "FR-12",
+        "NFR-2"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Error and retry UX",
+          "description": "InlineError wiring, error boundary, retry behaviour.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Stale, fallback and rate-limit badges",
+          "description": "Badge logic for stale data, PAXG fallback and 429 pause.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "Offline mode",
+          "description": "Detect offline state and show last cached data with timestamp.",
+          "status": "done",
+          "dependencies": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "QA, accessibility and performance pass; README and deployment",
+      "description": "Verify the whole app against the PRD success metrics, document it, and optionally deploy.",
+      "details": "Run full Playwright suite for UC1–UC6; axe-core on main views in both themes; Lighthouse (performance, accessibility ≥90); bundle analysis to keep initial JS ≤250 KB gzipped; correctness script comparing /api/spot BTC ratio with XAUS btc_gold_oz (±0.5 %). Write README: what it does, screenshot, setup (get a free CoinGecko Demo key, .env.local), scripts, data sources and methodology, limitations. Optional: deploy to Vercel with the env var set server-side and confirm the key is absent from client bundles (grep build output).",
+      "testStrategy": "All checks green: unit + integration + e2e suites pass; Lighthouse Accessibility ≥90; bundle budget met; correctness script within ±0.5 %; grep of .next/static for the API key returns nothing; README setup followed from a clean clone works.",
+      "status": "in-progress",
+      "dependencies": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "priority": "medium",
+      "prdRefs": [
+        "§3",
+        "§10",
+        "§12",
+        "G1-G6"
+      ],
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Automated QA sweep",
+          "description": "E2E for UC1–UC6, axe-core, Lighthouse, bundle budget, correctness script.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "README and methodology docs",
+          "description": "Setup guide, screenshots, sources, limitations.",
+          "status": "done",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "Optional Vercel deployment",
+          "description": "Deploy with server-side env var and verify no key in client bundle.",
+          "status": "deferred",
+          "dependencies": [
+            1
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "projectName": "AuRatio — Crypto/Gold Ratio Dashboard",
+    "prd": ".taskmaster/docs/prd.md",
+    "generatedBy": "prd-taskmaster (Native Mode)",
+    "created": "2026-10-11",
+    "taskCount": 16,
+    "milestones": {
+      "M1 Data layer": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "M2 MVP dashboard": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "M3 Any coin": [
+        11,
+        12,
+        13
+      ],
+      "M4 Polish & ship": [
+        14,
+        15,
+        16
+      ]
+    }
+  }
+}

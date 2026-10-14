@@ -1,0 +1,43 @@
+{
+ "coins": [
+  {
+   "id": "sui",
+   "name": "Sui",
+   "api_symbol": "sui",
+   "symbol": "SUI",
+   "market_cap_rank": 29,
+   "thumb": "https://coin-images.coingecko.com/coins/images/26375/thumb/sui-ocean-square.png",
+   "large": "https://coin-images.coingecko.com/coins/images/26375/large/sui-ocean-square.png"
+  },
+  {
+   "id": "usdsui",
+   "name": "USDsui",
+   "api_symbol": "usdsui",
+   "symbol": "USDSUI",
+   "market_cap_rank": 340,
+   "thumb": "https://coin-images.coingecko.com/coins/images/70675/thumb/usdsui.png",
+   "large": "https://coin-images.coingecko.com/coins/images/70675/large/usdsui.png"
+  },
+  {
+   "id": "esui-dollar",
+   "name": "eSui Dollar",
+   "api_symbol": "esui-dollar",
+   "symbol": "SUIUSDE",
+   "market_cap_rank": 1127,
+   "thumb": "https://coin-images.coingecko.com/coins/images/102172002/thumb/suiusdecorrect.png",
+   "large": "https://coin-images.coingecko.com/coins/images/102172002/large/suiusdecorrect.png"
+  },
+  {
+   "id": "suilend",
+   "name": "Suilend",
+   "api_symbol": "suilend",
+   "symbol": "SEND",
+   "market_cap_rank": 1801,
+   "thumb": "https://coin-images.coingecko.com/coins/images/50989/thumb/SEND.png",
+   "large": "https://coin-images.coingecko.com/coins/images/50989/large/SEND.png"
+  }
+ ],
+ "exchanges": [],
+ "nfts": [],
+ "categories": []
+}

@@ -1,0 +1,32 @@
+[
+ {
+  "id": "bitcoin",
+  "symbol": "btc",
+  "name": "Bitcoin",
+  "image": "https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400",
+  "current_price": 83016,
+  "market_cap_rank": 1,
+  "price_change_percentage_24h": 0.28244,
+  "last_updated": "2026-10-11T13:34:56.000Z"
+ },
+ {
+  "id": "ethereum",
+  "symbol": "eth",
+  "name": "Ethereum",
+  "image": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628",
+  "current_price": 2503.04,
+  "market_cap_rank": 2,
+  "price_change_percentage_24h": 0.23539,
+  "last_updated": "2026-10-11T13:34:56.000Z"
+ },
+ {
+  "id": "sui",
+  "symbol": "sui",
+  "name": "Sui",
+  "image": "https://coin-images.coingecko.com/coins/images/26375/large/sui-ocean-square.png?1727791290",
+  "current_price": 1.1,
+  "market_cap_rank": 29,
+  "price_change_percentage_24h": -1.12102,
+  "last_updated": "2026-10-11T13:34:56.000Z"
+ }
+]

@@ -1,0 +1,18 @@
+{
+ "xau": {
+  "price": 4195.6,
+  "currency": "USD",
+  "unit": "troy_oz"
+ },
+ "spot_usd_oz": 4195.600098,
+ "per_gram_usd": 134.8917,
+ "btc_usd": 83014,
+ "btc_gold_oz": 19.79,
+ "fx_rate": 1,
+ "fx_source": "open.er-api.com",
+ "fx_stale": false,
+ "updated_at": "2026-10-11T13:34:03.589Z",
+ "stale": false,
+ "price_as_of": "2026-10-11T13:34:03.589Z",
+ "source": "xaus.com"
+}
