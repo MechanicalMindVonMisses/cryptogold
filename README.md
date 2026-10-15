@@ -1,5 +1,7 @@
 # AuRatio — crypto priced in gold
 
+**Live at [www.cryptogold.me](https://www.cryptogold.me)**
+
 AuRatio answers one question: **how much gold is one unit of a cryptocurrency worth, and how has that changed?**
 Pick any coin and it shows the live coin/gold ratio in troy ounces or grams, a chart of how it moved, key figures
 and a plain-language summary of what the chart says.
@@ -33,14 +35,16 @@ Recording starts as soon as the server starts: the server log shows
 (per-minute points at first, hourly once a few hours are recorded). **Keep the server running to keep recording**;
 time with the server off shows as a gap in the chart.
 
-| Variable                  | Required | Purpose                                                                                                                                                        |
-| ------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FREECRYPTOAPI_KEY`       | yes      | Live coin prices from FreeCryptoAPI. The server prints a readable error at startup if it is missing.                                                           |
-| `COINGECKO_DEMO_API_KEY`  | no       | A [CoinGecko Demo key](https://www.coingecko.com/en/developers/dashboard) raises CoinGecko rate limits (search, names, 24h change). Keyless is used otherwise. |
-| `AURATIO_DB_PATH`         | no       | Where recorded history is stored. Default `data/auratio.db` (git-ignored). Back this file up to keep your history.                                             |
-| `RECORDER`                | no       | `on` (default) or `off`. With `off` the dashboard still works, but nothing new is recorded.                                                                    |
-| `RECORD_INTERVAL_SECONDS` | no       | Default 60, minimum 60. One FreeCryptoAPI request per interval: 60 s ≈ 44,000 of the free plan's 100,000 requests a month.                                     |
-| `BINANCE_BASE_URL`        | no       | Last-resort PAXG gold price. Defaults to `https://api.binance.com` (falls back to `https://data-api.binance.vision` automatically).                            |
+| Variable                     | Required | Purpose                                                                                                                                                          |
+| ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FREECRYPTOAPI_KEY`          | yes      | Live coin prices from FreeCryptoAPI. The server prints a readable error at startup if it is missing.                                                             |
+| `COINGECKO_DEMO_API_KEY`     | no       | A [CoinGecko Demo key](https://www.coingecko.com/en/developers/dashboard) raises CoinGecko rate limits (search, names, 24h change). Keyless is used otherwise.   |
+| `AURATIO_DB_PATH`            | no       | Where recorded history is stored. Default `data/auratio.db` (git-ignored). Back this file up to keep your history.                                               |
+| `RECORDER`                   | no       | `on` (default) or `off`. With `off` the dashboard still works, but nothing new is recorded.                                                                      |
+| `RECORD_INTERVAL_SECONDS`    | no       | Default 60, minimum 60. One FreeCryptoAPI request per interval: 60 s ≈ 44,000 of the free plan's 100,000 requests a month.                                       |
+| `FREECRYPTOAPI_DAILY_BUDGET` | no       | Most FreeCryptoAPI requests per UTC day (default 3,200, about 97,000 a month). Past it, live prices come from CoinGecko and recording pauses until the next day. |
+| `PUBLIC_HOST`                | no       | Public address, e.g. `www.cryptogold.me`; the bare domain then redirects to it. Read at build time, so run `npm run build` after changing it.                    |
+| `BINANCE_BASE_URL`           | no       | Last-resort PAXG gold price. Defaults to `https://api.binance.com` (falls back to `https://data-api.binance.vision` automatically).                              |
 
 Keys are read only by the server and never reach the browser; `npm run check:bundle` verifies that.
 
@@ -109,12 +113,13 @@ scripts/               Bundle/key-leak and correctness checks
   series, and converting old prices at today's rate would misstate them.
 - Prices are indicative and come from free public sources. **Not financial advice.**
 
-## Hosting on www.cryptogold.me (this PC + Cloudflare Tunnel)
+## Hosting on www.cryptogold.me (Windows PC + Cloudflare Tunnel)
 
-The site runs on this Windows PC. The server listens only on `127.0.0.1:3000`; a free
+The live site runs on a home Windows PC. The server listens only on `127.0.0.1:3000`; a free
 [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) carries
-visitors from the domain to it, with HTTPS and no router ports opened. The PC must stay on (it is set never to
-sleep on mains power) and logged in.
+visitors from the domain to it, with HTTPS and no router ports opened. The PC must stay on (set it never to sleep
+on mains power) and logged in. The steps below use `cryptogold.me` and GoDaddy as the example; substitute your own
+domain and registrar.
 
 | Script (`deploy/windows/`) | What it does                                                                                             |
 | -------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -145,6 +150,8 @@ Logs are in `logs/` (`server.log`, `tunnel.log`). After changing code or `.env.l
 **Public-site protection:** each visitor gets at most 120 API requests at once, refilling at 2 per second;
 FreeCryptoAPI use is capped at `FREECRYPTOAPI_DAILY_BUDGET` requests per UTC day (default 3,200, under the free
 plan's 100k a month). Past the cap, live prices fall back to CoinGecko and recording pauses until the next day.
+On Cloudflare, the domain has _Always Use HTTPS_, HSTS (6 months, subdomains), minimum TLS 1.2 and Bot Fight Mode
+turned on; the site serves `/.well-known/security.txt` from `public/`.
 
 ## Other always-on machines
 
@@ -156,7 +163,23 @@ kept alive with systemd, pm2 or Docker. Serverless hosting can't run the recorde
 Your history lives in `data/auratio.db` (or your `AURATIO_DB_PATH`). The recorder folds new data into that file
 every 10 minutes and once a day writes a complete copy to `data/backups/auratio-YYYY-MM-DD.db`, keeping the
 newest 7. Copy `data/backups` somewhere else (another disk, cloud storage) now and then: those copies are what
-protect you if this PC's disk fails.
+protect you if the server's disk fails.
 
 To restore: run `stop-auratio.ps1`, copy a backup over `data/auratio.db`, delete `data/auratio.db-wal` and
 `data/auratio.db-shm` if present, then `start-auratio.ps1`.
+
+## Security
+
+Please report vulnerabilities privately through
+[GitHub's private vulnerability reporting](https://github.com/MechanicalMindVonMisses/cryptogold/security/advisories/new),
+not in public issues. See [SECURITY.md](SECURITY.md) for scope.
+
+## Planning documents
+
+[`prd.md`](prd.md) (product requirements) and [`tasks.json`](tasks.json) (task breakdown) are the original plan the
+app was built from. Some details changed during the build, most importantly where price history comes from; the
+note at the top of `prd.md` lists the differences. This README describes the app as it is.
+
+## License
+
+[MIT](LICENSE) © 2026 Ali Berke Korkmaz

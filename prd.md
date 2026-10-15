@@ -1,5 +1,18 @@
 # PRD: AuRatio — Crypto/Gold Ratio Dashboard
 
+> **Note (October 2026):** this is the original plan the app was built from, kept as written. The built app differs
+> in these ways; the [README](README.md) describes how it works now.
+>
+> - **Price history** is recorded by AuRatio itself: every minute it saves FreeCryptoAPI coin prices and the XAUS
+>   gold price into a local SQLite database, and charts are drawn from that recording. It does not use CoinGecko or
+>   Binance history (§7.1), so history starts when recording starts and 1Y/5Y/Max fill in over time.
+> - **Live coin prices** come from FreeCryptoAPI (each checked against CoinGecko's price for the same coin), with
+>   CoinGecko as the fallback. CoinGecko still provides search, names, icons and the 24h change.
+> - **Hosting** is a Windows PC behind a Cloudflare Tunnel at www.cryptogold.me, not Vercel (§15): serverless
+>   hosting can't run the background recorder.
+> - **Configuration:** `FREECRYPTOAPI_KEY` is required; `COINGECKO_DEMO_API_KEY` is optional (§9.5).
+> - **TRY display:** historical prices in tooltips and CSV stay in USD; only live prices are converted (§FR-10).
+
 | Field | Value |
 |---|---|
 | Owner | Berke |

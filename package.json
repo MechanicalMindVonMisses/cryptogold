@@ -47,6 +47,7 @@
     "vitest": "^5.0.3"
   },
   "description": "AuRatio: crypto priced in gold (troy ounces or grams).",
+  "license": "MIT",
   "engines": {
     "node": ">=22.13"
   }

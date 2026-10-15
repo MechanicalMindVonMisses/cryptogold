@@ -724,6 +724,7 @@
         15,
         16
       ]
-    }
+    },
+    "note": "Original task breakdown the app was built from, kept as written. Price history ended up being recorded by AuRatio itself from FreeCryptoAPI (not CoinGecko/Binance history), and hosting is a Windows PC behind a Cloudflare Tunnel (not Vercel). See the note at the top of prd.md and the README."
   }
 }
